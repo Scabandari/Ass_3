@@ -48,8 +48,9 @@ public class Scheduler implements Runnable {
 	private int size_of_main_memory;
 	
 	PrintWriter outputFile;     //so we can print to a .txt file..ASS 2
+	PrintWriter outputFile2;  
 
-	File hard_drive;
+//	File hard_drive;
 
 	Thread clockThread;        //a Thread for our Clock instance
 
@@ -99,7 +100,7 @@ public class Scheduler implements Runnable {
 		size_of_main_memory = Integer.parseInt(input_from_mem_config.get(0));
 		MainMemory = new Variable[size_of_main_memory];
 		
-		hard_drive = new File("hardDrive.txt");
+	//	hard_drive = new File("hardDrive.txt");
 		
 //		//here we read just the first line of MemConfig file to get the size of MainMemory
 //		BufferedReader read = null;
@@ -129,28 +130,65 @@ public class Scheduler implements Runnable {
 
 	} // end Scheduler constructor
 	
+	//this function checks commmands_from_file array list for next command to execute and gets called by MyProcess's run()
+	public void executeNextCommand() {
+		
+		String[] tokens;
+		String command;
+		//access to any data structure that is shared among executing process's must be synchronized
+		synchronized(this) {
+			if(!commands_from_file.isEmpty()) {
+				command = commands_from_file.remove(0);
+				System.out.println("NEXT COMMAND IS: " +  command + "\n");
+				
+				tokens = command.split("\\s");
+				
+				switch(tokens[0]) {
+				
+				case "Store":
+					store(tokens[1], Integer.parseInt(tokens[2]));
+					break;
+			/*	case "Lookup":
+					Lookup(tokens[1], Integer.parseInt(tokens[2]));   DON'T HAVE THIS YET
+					break;
+					*/
+				case "Release":
+					release(tokens[1]);
+					break;
+					
+					default:
+						System.out.println("Command not found. problem in function executeNextCommand() in class Scheduler. Hint is Lookup defined yet?");
+				}	
+			} else
+				System.out.println("Commands list is now empty");
+		}
+			
+	}
+
+	
+	
 	// virtual memory manager starts here
 	//Store (string variableId, unsigned int value): This instruction stores the given variableId
 	//and its value in the first unassigned spot in the memory. 
 	public void store(String varId, int value) {
 		
-		BufferedReader read = null;
-		BufferedWriter write = null;
-		try {
-			read = new BufferedReader(new FileReader(hard_drive));
-		} catch (FileNotFoundException e) {
-			
-			e.printStackTrace();
-		}
-		try {
-			write = new BufferedWriter(new FileWriter(hard_drive));
-		} catch (IOException e) {
-			
-			e.printStackTrace();
-		}
+//		BufferedReader read = null;
+//		BufferedWriter write = null;
+//		try {
+//			read = new BufferedReader(new FileReader(hard_drive));
+//		} catch (FileNotFoundException e) {
+//			
+//			e.printStackTrace();
+//		}
+//		try {
+//			write = new BufferedWriter(new FileWriter(hard_drive));
+//		} catch (IOException e) {
+//			
+//			e.printStackTrace();
+//		}
 		//http://docs.oracle.com/javase/tutorial/essential/concurrency/locksync.html
 		//this provides the object on which the lock is aquired
-		Variable newVar = new Variable(varId, value );
+		Variable newVar = new Variable(varId, value);
 		boolean flag = false; 
 		synchronized(this) {
 			for(int i = 0; i < size_of_main_memory; i++) {
@@ -158,27 +196,29 @@ public class Scheduler implements Runnable {
 				if(MainMemory[i] == null) { //add variable to first available place
 					flag = true;
 					MainMemory[i] = newVar;
+					System.out.println("TIME: " + getElapsedTime() +  " STORING VARIABLE " + newVar.getVarID() + " IN MAIN MEMORY\n");
 				}
 			}
 			
+			System.out.println("TIME: " + getElapsedTime() +  " MAIN MEMORY FULL! STORING " + newVar.getVarID() + " IN .TXT FILE\n");
 			if(!flag) {
 				//here i would store newVar in txt file hard_drive
-			
+				storeInHardDrive(newVar);
 			}
 		}
 		
-		try {
-			read.close();
-		} catch (IOException e) {
-			
-			e.printStackTrace();
-		}
-		try {
-			write.close();
-		} catch (IOException e) {
-			
-			e.printStackTrace();
-		}
+//		try {
+//			read.close();
+//		} catch (IOException e) {
+//			
+//			e.printStackTrace();
+//		}
+//		try {
+//			write.close();
+//		} catch (IOException e) {
+//			
+//			e.printStackTrace();
+//		}
 	}
 	
 	public void release(String varId) {
@@ -208,6 +248,14 @@ public class Scheduler implements Runnable {
 		
 	}
 	
+	public void storeInHardDrive(Variable v) {
+		String input = v.getVarID() + " " + v.getValue();
+		System.out.println("Trying to print to HardDrive.txt variable ID: " + v.getVarID() + " value: " + v.getValue());
+		outputFile2.println(input);
+		outputFile2.flush();
+//		outputFile.close();
+		
+	}
 	
 	//http://stackoverflow.com/questions/2885173/how-do-i-create-a-file-and-write-to-it-in-java
 	public void createTextFile() {
@@ -215,6 +263,19 @@ public class Scheduler implements Runnable {
 //		System.out.println("SHOULD BE Creating a .txt file named Output.txt BUT NOTHING HAPPENS");
 			try {
 				outputFile = new PrintWriter("Output.txt", "UTF-8");
+			} catch (FileNotFoundException | UnsupportedEncodingException e) {
+			
+				e.printStackTrace();
+			}
+		
+
+	}
+	
+	public void createHardDriveTextFile() {
+		
+//		System.out.println("SHOULD BE Creating a .txt file named Output.txt BUT NOTHING HAPPENS");
+			try {
+				outputFile2 = new PrintWriter("HardDrive.txt", "UTF-8");
 			} catch (FileNotFoundException | UnsupportedEncodingException e) {
 			
 				e.printStackTrace();
@@ -679,6 +740,7 @@ public class Scheduler implements Runnable {
 
 		}
 		outputFile.close();
+		outputFile2.close();
 		
 		////////////////////////////////////////////////////////////////////
 		// Before run() closes must .join() & .interrupt() all threads
@@ -697,7 +759,8 @@ public class Scheduler implements Runnable {
 
 									// function to end
 		System.out.println("Scheduler Thread is about to finish");
-		outputFile.close();
+//		outputFile.close();
+//		outputFile2.close();
 
 	}
 /*
@@ -919,33 +982,5 @@ public class Scheduler implements Runnable {
 
 	}
 
-	public void executeNextCommand() {
-		
-		String[] tokens;
-		String command;
-		synchronized(this) {
-			command = commands_from_file.remove(0);
-		}
-		
-		tokens = command.split("\\s");
-		
-		switch(tokens[0]) {
-			
-		case "Store":
-			store(tokens[1], Integer.parseInt(tokens[2]));
-			break;
-	/*	case "Lookup":
-			Lookup(tokens[1], Integer.parseInt(tokens[2]));   DON'T HAVE THIS YET
-			break;
-			*/
-		case "Release":
-			release(tokens[1]);
-			break;
-			
-			default:
-				System.out.println("Command not found. problem in function executeNextCommand() in class Scheduler");
-		}	
-		
-	}
-
+	
 }
