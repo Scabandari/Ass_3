@@ -68,15 +68,17 @@ class MyProcess implements Runnable {
 				 */
 				
 				Random ran = new Random();
-				int executionTime = ran.nextInt(200);
+				int executionTime = ran.nextInt(200) + 50;
 				//this function reads the next command from ArrayList commands_from_file and executes the command
 				s.executeNextCommand(); 
-				try {
-					Thread.sleep(executionTime);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+				int time = (int) System.currentTimeMillis();
+				while(System.currentTimeMillis() < time + executionTime){} //busy waiting
+//				try {
+//					Thread.sleep(executionTime);
+//				} catch (InterruptedException e) {
+//					// TODO Auto-generated catch block
+//					e.printStackTrace();
+//				}
 				}
 			
 		}
