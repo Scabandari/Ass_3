@@ -7,8 +7,10 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
+import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
@@ -59,6 +61,7 @@ public class Scheduler implements Runnable {
 	public Scheduler() {
 		
 		createTextFile();
+		createHardDriveTextFile();
 		elapsedTime = 0;
 		clock = new Clock(this);
 		clockThread = new Thread(clock);
@@ -100,35 +103,143 @@ public class Scheduler implements Runnable {
 		size_of_main_memory = Integer.parseInt(input_from_mem_config.get(0));
 		MainMemory = new Variable[size_of_main_memory];
 		
-	//	hard_drive = new File("hardDrive.txt");
-		
-//		//here we read just the first line of MemConfig file to get the size of MainMemory
-//		BufferedReader read = null;
-//		try {
-//			//no idea if this will work
-//			read = new BufferedReader(new FileReader("/home/scabandari/Desktop/memconfig.txt"));
-//		} catch (FileNotFoundException e1) {
-//			
-//			e1.printStackTrace();
-//		}
-//		try {
-//			inputFromMemConfig = read.readLine();
-//		} catch (IOException e) {
-//			
-//			e.printStackTrace();
-//		}
-//		try {
-//			read.close();
-//		} catch (IOException e) {
-//			
-//			e.printStackTrace();
-//		}
-		
 		populateProcessList();
 		printProcessList(); // just a test to see if creating MyProcess objects
 		populateThreadHandlerList(); //keeps ThreadHandlers and readies them to enter the queue system
 
 	} // end Scheduler constructor
+	
+	//When we know that a variable needs to be placed in MainMemory but we don't know which slot it 
+	//should be placed in, ie which is the oldest
+	public int findIndex() {
+		
+		int min = 0;
+		
+		for(int i = 0; i < size_of_main_memory-1; i++) {
+			if(MainMemory[min].getBitCounterValue() > MainMemory[i+1].getBitCounterValue()){
+				min = i+1;
+			}
+		}
+		
+		return min;
+	}
+	//once we find the variable on the hard drive and must move it to MainMemory this functions finds it's place in MM
+	//if a swap needs to take place, ie if there are no free slots in MM then return the variable that must be swapped
+	public Variable placeInMemory(Variable v) {
+		
+		//swaps if necessary or returnns null if free space in MM
+		
+		Variable temp = null;
+		
+		for(int i = 0; i < size_of_main_memory; i++) {
+			if(MainMemory[i] == null) {
+				MainMemory[i] = v;
+				return null;
+			}
+		}
+		
+		MainMemory[findIndex()] = v;
+		
+		return temp;
+	}
+	
+	
+	/*****************checkTextFile()  **********************/
+	public int checkTextFile(String ID) throws IOException //will take String to check it in the text file 
+	{
+		//returns variable value if found or -1 if not in hard drive
+		//also if found must swap from hard drive to MainMemory
+		Variable tempVar = null;
+		boolean flag = false;
+		int swapIndex = 0; 
+		int returnValue = -1;
+	//	try{
+			List<String> fileInput = new ArrayList<>();
+		//	for (String line : Files.readAllLines(Paths.get("C:/Users/Ali/workspace/OSAss2Write/wawanesa.txt"))) {
+//			http://stackoverflow.com/questions/4871051/getting-the-current-working-directory-in-java
+			Path currentRelativePath = Paths.get("");
+			String pathToFile = currentRelativePath.toAbsolutePath().toString();
+			
+			ArrayList<String> hardDriveData = (ArrayList<String>) Files.readAllLines(Paths.get(pathToFile + "HardDrive.txt"));
+			
+			for(int i =0; i<hardDriveData.size(); i++) {
+				String[] tokens = hardDriveData.get(i).split("//s");
+				if(tokens[0] == ID) { //found it
+					tempVar = new Variable(tokens[0], Integer.parseInt(tokens[1]));
+					swapIndex = i; //keep index
+					flag = true;  
+					returnValue = tempVar.getValue();
+				}
+				//keep the index where we found the variable for the swapping w/ main memory
+				
+			}
+			
+			//if flag still equals false we did not find our variable on the hard drive and get return -1
+			if(!flag) {
+				return -1;
+			}
+			
+			// ELSE we must check for a free spot in MainMemory
+//			
+			for(int i = 0; i < size_of_main_memory; i++) {
+				if(MainMemory[i] == null) {
+					MainMemory[i] = tempVar;
+					return returnValue;
+				}
+			}
+			
+			// if there is none then we must swap
+			// here we must add tempVar to MainMemory based on the age of entries in MM
+			int index = findIndex();  //finds which of the variables in MainMemory must be swapped out and returns it's array index
+			Variable toHardDrive = MainMemory[index];
+			MainMemory[index] = tempVar;    
+			
+			//.set() will replace at that index
+			hardDriveData.set(swapIndex, toHardDrive.getVarID() + " " + String.valueOf(toHardDrive.getValue()));
+			
+			//now we must wipe hard drive .txt file clean and print ArrayList hardDriveData to it
+			emptyHardDrive();
+			printListToHardDrive(hardDriveData);
+			return returnValue;
+	
+	
+	}
+	
+
+	public void emptyHardDrive() //this function will empty text files
+	{
+		
+		PrintWriter writer2 = null;
+		try {
+			writer2 = new PrintWriter( getHardDrivePath());
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} 
+		   writer2.println("");
+		    writer2.close();
+	}
+//	}
+
+	/******************** printListToHardDrive() *************************/
+	public void printListToHardDrive(ArrayList<String> hardDriveList) throws FileNotFoundException //pass arraylist to it so you can print it
+	{
+		PrintWriter writer3 = new PrintWriter(getHardDrivePath());  
+		for(String str: hardDriveList) {   //the arraylist you passing replace it with VarIdList
+			  writer3.write(str+" ");
+			}
+			writer3.close();
+	}
+	
+	//this function returns the path to the hard drive .txt file and it's name so it can be used easily
+	//note the .txt is created by the program so should be stored in current directory
+	/******************getHardDrivePath() *******************************/
+	public String getHardDrivePath() {
+		Path currentRelativePath = Paths.get("");
+		String pathToFile = currentRelativePath.toAbsolutePath().toString();
+		pathToFile += "HardDrive.txt";
+		return pathToFile;
+	}
 	
 	//this function checks commmands_from_file array list for next command to execute and gets called by MyProcess's run()
 	public void executeNextCommand() {
@@ -146,6 +257,7 @@ public class Scheduler implements Runnable {
 				switch(tokens[0]) {
 				
 				case "Store":
+					System.out.println("Case statement: Command Store is executing");
 					store(tokens[1], Integer.parseInt(tokens[2]));
 					break;
 			/*	case "Lookup":
@@ -171,21 +283,7 @@ public class Scheduler implements Runnable {
 	//Store (string variableId, unsigned int value): This instruction stores the given variableId
 	//and its value in the first unassigned spot in the memory. 
 	public void store(String varId, int value) {
-		
-//		BufferedReader read = null;
-//		BufferedWriter write = null;
-//		try {
-//			read = new BufferedReader(new FileReader(hard_drive));
-//		} catch (FileNotFoundException e) {
-//			
-//			e.printStackTrace();
-//		}
-//		try {
-//			write = new BufferedWriter(new FileWriter(hard_drive));
-//		} catch (IOException e) {
-//			
-//			e.printStackTrace();
-//		}
+
 		//http://docs.oracle.com/javase/tutorial/essential/concurrency/locksync.html
 		//this provides the object on which the lock is aquired
 		Variable newVar = new Variable(varId, value);
@@ -197,6 +295,8 @@ public class Scheduler implements Runnable {
 					flag = true;
 					MainMemory[i] = newVar;
 					System.out.println("TIME: " + getElapsedTime() +  " STORING VARIABLE " + newVar.getVarID() + " IN MAIN MEMORY\n");
+					printToFile("Time " + elapsedTime + ", Var: " + varId + " value: " + value + ", Stored in MainMemory[ " + i + "]\n");
+					return;
 				}
 			}
 			
@@ -206,19 +306,7 @@ public class Scheduler implements Runnable {
 				storeInHardDrive(newVar);
 			}
 		}
-		
-//		try {
-//			read.close();
-//		} catch (IOException e) {
-//			
-//			e.printStackTrace();
-//		}
-//		try {
-//			write.close();
-//		} catch (IOException e) {
-//			
-//			e.printStackTrace();
-//		}
+
 	}
 	
 	public void release(String varId) {
@@ -247,7 +335,7 @@ public class Scheduler implements Runnable {
 //		outputFile.close();
 		
 	}
-	
+	// STILL NEED THIS????????????????????????/
 	public void storeInHardDrive(Variable v) {
 		String input = v.getVarID() + " " + v.getValue();
 		System.out.println("Trying to print to HardDrive.txt variable ID: " + v.getVarID() + " value: " + v.getValue());
@@ -267,8 +355,6 @@ public class Scheduler implements Runnable {
 			
 				e.printStackTrace();
 			}
-		
-
 	}
 	
 	public void createHardDriveTextFile() {
@@ -280,8 +366,6 @@ public class Scheduler implements Runnable {
 			
 				e.printStackTrace();
 			}
-		
-
 	}
 
 	public int getElapsedTime() {
