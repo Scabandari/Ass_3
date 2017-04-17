@@ -125,24 +125,24 @@ public class Scheduler implements Runnable {
 	}
 	//once we find the variable on the hard drive and must move it to MainMemory this functions finds it's place in MM
 	//if a swap needs to take place, ie if there are no free slots in MM then return the variable that must be swapped
-	public Variable placeInMemory(Variable v) {
-		
-		//swaps if necessary or returnns null if free space in MM
-		
-		Variable temp = null;
-		
-		for(int i = 0; i < size_of_main_memory; i++) {
-			if(MainMemory[i] == null) {
-				MainMemory[i] = v;
-				return null;
-			}
-		}
-		
-		MainMemory[findIndex()] = v;
-		
-		return temp;
-	}
-	
+//	public Variable placeInMemory(Variable v) {
+//		
+//		//swaps if necessary or returnns null if free space in MM
+//		
+//		Variable temp = null;
+//		
+//		for(int i = 0; i < size_of_main_memory; i++) {
+//			if(MainMemory[i] == null) {
+//				MainMemory[i] = v;
+//				return null;
+//			}
+//		}
+//		
+//		MainMemory[findIndex()] = v;
+//		
+//		return temp;
+//	}
+//	
 	
 	/*****************checkTextFile()  **********************/
 	public int checkTextFile(String ID) throws IOException //will take String to check it in the text file 
