@@ -14,6 +14,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.TreeSet;
 
 
@@ -55,11 +57,31 @@ public class Scheduler implements Runnable {
 //	File hard_drive;
 
 	Thread clockThread;        //a Thread for our Clock instance
+	Thread agerThread;
 
 	// private final float START_TIME;
 
 	public Scheduler() {
 		
+//		
+//		TimerTask updateVariablesAge = new TimerTask() {
+//			
+//			@Override 
+//			public void run() {
+//				for(int i = 0; i < size_of_main_memory; i++) {
+//					MainMemory[i].aging(); // ages each Variable stored in MM
+//					System.out.println("Time: " + elapsedTime + " variables being aged");
+//				}
+//			}
+//		};
+//		
+//		Timer timer = new Timer("MyTimer");
+//		timer.scheduleAtFixedRate(updateVariablesAge, 0, 100); //every 100 millis
+//		timer.start();
+		
+		Ager agesAllVariables = new Ager(this);
+		agerThread = new Thread(agesAllVariables);
+		agerThread.start();
 		createTextFile();
 		createHardDriveTextFile();
 		elapsedTime = 0;
@@ -109,6 +131,15 @@ public class Scheduler implements Runnable {
 
 	} // end Scheduler constructor
 	
+	public void ageAllVariables() {
+		for(int i = 0; i < size_of_main_memory; i++) {
+			if(MainMemory[i] != null) {
+				MainMemory[i].aging();
+			}
+			
+		}
+	}
+	
 	//When we know that a variable needs to be placed in MainMemory but we don't know which slot it 
 	//should be placed in, ie which is the oldest
 	public int findIndex() {
@@ -149,7 +180,7 @@ public class Scheduler implements Runnable {
 				if(tokens[0] == ID) { //found it
 					tempVar = new Variable(tokens[0], Integer.parseInt(tokens[1]));
 					tempVar.setWasUsed(true);
-					swapIndex = i; //keep index
+					swapIndex = i; //keep index ..
 					flag = true;  
 					returnValue = tempVar.getValue();
 				}
@@ -275,6 +306,7 @@ public class Scheduler implements Runnable {
 		for(int i = 0; i < size_of_main_memory; i++) {
 			if(MainMemory[i].getVarID() == varId) {
 				MainMemory[i].setWasUsed(true);
+				System.out.println("Lookup Variable " + varId + " found in MainMemory");
 				printToFile("Time " + elapsedTime + ", Lookup Variable  " + varId  + " value:  " + MainMemory[i].getValue());
 				return MainMemory[i].getValue();
 			}
@@ -376,7 +408,9 @@ public class Scheduler implements Runnable {
 	// *************************88/
 	public void storeInHardDrive(Variable v) {
 		String input = v.getVarID() + " " + v.getValue();
-		System.out.println("Trying to print to HardDrive.txt variable ID: " + v.getVarID() + " value: " + v.getValue());
+		System.out.println("Storing variable " + v.getVarID() + " in hard drive");
+		printToFile("Time " + elapsedTime + ", Variable " + v.getVarID() + " stored in hard drive");
+
 		outputFile2.println(input);
 		outputFile2.flush();
 //		outputFile.close();
@@ -1102,6 +1136,28 @@ public class Scheduler implements Runnable {
 
 		}
 
+	}
+	
+	// this class will age all variables in mainmemory
+	private class Ager implements Runnable {
+		Scheduler s; 
+		
+		Ager(Scheduler sched) {
+			s = sched;
+		}
+		
+		@Override
+		public void run() {
+			while(!Thread.interrupted()) {
+				s.ageAllVariables();
+				try {
+					Thread.sleep(100);
+				} catch (InterruptedException e) {
+					
+					e.printStackTrace();
+				}
+			}
+		}
 	}
 
 	
