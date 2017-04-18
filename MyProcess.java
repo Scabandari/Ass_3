@@ -1,4 +1,6 @@
 
+import java.io.IOException;
+
 import java.util.Random;
 @SuppressWarnings("rawtypes")
 //Scheduler will know how long each Process has been run and get update 
@@ -52,27 +54,25 @@ class MyProcess implements Runnable {
 //		int i = 0; 
 			//THIS RUNS UNTIL SCHEDULER CALLS .interupt() on it
 			while(!Thread.interrupted()) {
-		/*		try {
-					i++;
-				if (i % 100 == 0) {
-					System.out.println("Process : " + PID + " is executing on the CPU");
-					//s.executeNextInstruction
-				}
-					Thread.sleep(1); 
-					//I think it's getting interupted during it's sleep cycle
-				} catch (InterruptedException e) {
-		//			http://stackoverflow.com/questions/1087475/when-does-javas-thread-sleep-throw-interruptedexception
-					Thread.currentThread().interrupt();
-				//	e.printStackTrace();
-				
-				 */
+	
 				
 				Random ran = new Random();
 				int executionTime = ran.nextInt(200) + 50;
 				//this function reads the next command from ArrayList commands_from_file and executes the command
-				s.executeNextCommand(); 
+				try {
+					s.executeNextCommand();
+				} catch (IOException e) {
+				
+					e.printStackTrace();
+				} 
 				int time = (int) System.currentTimeMillis();
-				while(System.currentTimeMillis() < time + executionTime){} //busy waiting
+				boolean timeIsUP = false;
+				while(!timeIsUP){
+					int tempTime = (int) System.currentTimeMillis();
+					if(tempTime > time + executionTime) {
+						timeIsUP = true;
+					}
+				} //busy waiting
 //				try {
 //					Thread.sleep(executionTime);
 //				} catch (InterruptedException e) {
