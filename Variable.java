@@ -27,6 +27,9 @@ public class Variable {
 		wasUsed = false;
 	}
 	
+	public void setWasUsed(boolean b) {
+		wasUsed = b;
+	}
 	public double getBitCounterValue() {
 		double bitCounterValue = 0;
 		int counter = 1;
@@ -63,11 +66,5 @@ public class Variable {
 	public void setBitCounter(int[] bitCounter) {
 		this.bitCounter = bitCounter;
 	}
-	/*
-	@Override
-	public String toString() {
-		return getVarID()
-	}
-	*/
 	
 }

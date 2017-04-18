@@ -123,28 +123,10 @@ public class Scheduler implements Runnable {
 		
 		return min;
 	}
-	//once we find the variable on the hard drive and must move it to MainMemory this functions finds it's place in MM
-	//if a swap needs to take place, ie if there are no free slots in MM then return the variable that must be swapped
-//	public Variable placeInMemory(Variable v) {
-//		
-//		//swaps if necessary or returnns null if free space in MM
-//		
-//		Variable temp = null;
-//		
-//		for(int i = 0; i < size_of_main_memory; i++) {
-//			if(MainMemory[i] == null) {
-//				MainMemory[i] = v;
-//				return null;
-//			}
-//		}
-//		
-//		MainMemory[findIndex()] = v;
-//		
-//		return temp;
-//	}
-//	
+
 	
 	/*****************checkTextFile()  **********************/
+	/**************checks our hard drive .txt file for variable ******/
 	public int checkTextFile(String ID) throws IOException //will take String to check it in the text file 
 	{
 		//returns variable value if found or -1 if not in hard drive
@@ -160,12 +142,13 @@ public class Scheduler implements Runnable {
 			Path currentRelativePath = Paths.get("");
 			String pathToFile = currentRelativePath.toAbsolutePath().toString();
 			
-			ArrayList<String> hardDriveData = (ArrayList<String>) Files.readAllLines(Paths.get(pathToFile + "HardDrive.txt"));
+			ArrayList<String> hardDriveData = (ArrayList<String>) Files.readAllLines(Paths.get(pathToFile + "/HardDrive.txt"));
 			
 			for(int i =0; i<hardDriveData.size(); i++) {
 				String[] tokens = hardDriveData.get(i).split("//s");
 				if(tokens[0] == ID) { //found it
 					tempVar = new Variable(tokens[0], Integer.parseInt(tokens[1]));
+					tempVar.setWasUsed(true);
 					swapIndex = i; //keep index
 					flag = true;  
 					returnValue = tempVar.getValue();
@@ -183,7 +166,8 @@ public class Scheduler implements Runnable {
 //			
 			for(int i = 0; i < size_of_main_memory; i++) {
 				if(MainMemory[i] == null) {
-					MainMemory[i] = tempVar;
+					MainMemory[i] = tempVar; //
+					printToFile("Time " + elapsedTime + " Variable " + ID + " found on hard drive and placed in Main Memory at index: " + i);
 					return returnValue;
 				}
 			}
@@ -196,6 +180,8 @@ public class Scheduler implements Runnable {
 			
 			//.set() will replace at that index
 			hardDriveData.set(swapIndex, toHardDrive.getVarID() + " " + String.valueOf(toHardDrive.getValue()));
+			printToFile("Time " + elapsedTime + " Variable " + ID + " found on hard drive and swapped into Main Memory at index: " + index);
+
 			
 			//now we must wipe hard drive .txt file clean and print ArrayList hardDriveData to it
 			emptyHardDrive();
@@ -205,7 +191,7 @@ public class Scheduler implements Runnable {
 	
 	}
 	
-
+	/************************************************/
 	public void emptyHardDrive() //this function will empty text files
 	{
 		
@@ -240,9 +226,10 @@ public class Scheduler implements Runnable {
 		pathToFile += "HardDrive.txt";
 		return pathToFile;
 	}
-	
+	/**
+	 * @throws IOException *******************************************************************/
 	//this function checks commmands_from_file array list for next command to execute and gets called by MyProcess's run()
-	public void executeNextCommand() {
+	public void executeNextCommand() throws IOException {
 		
 		String[] tokens;
 		String command;
@@ -268,6 +255,10 @@ public class Scheduler implements Runnable {
 					release(tokens[1]);
 					break;
 					
+				case "Lookup":
+					lookup(tokens[1]);
+					break;
+					
 					default:
 						System.out.println("Command not found. problem in function executeNextCommand() in class Scheduler. Hint is Lookup defined yet?");
 				}	
@@ -277,8 +268,27 @@ public class Scheduler implements Runnable {
 			
 	}
 
-	
-	
+	/**
+	 * @throws IOException ************************************************/
+	private int lookup(String varId) throws IOException {
+		//check MM first
+		for(int i = 0; i < size_of_main_memory; i++) {
+			if(MainMemory[i].getVarID() == varId) {
+				MainMemory[i].setWasUsed(true);
+				printToFile("Time " + elapsedTime + ", Lookup Variable  " + varId  + " value:  " + MainMemory[i].getValue());
+				return MainMemory[i].getValue();
+			}
+		}
+		
+		//now check hard Drive
+		
+		//	for (String line : Files.readAllLines(Paths.get("C:/Users/Ali/workspace/OSAss2Write/wawanesa.txt"))) {
+//			http://stackoverflow.com/questions/4871051/getting-the-current-working-directory-in-java
+			
+		return checkTextFile(varId);
+	}
+
+	/**************************************************/
 	// virtual memory manager starts here
 	//Store (string variableId, unsigned int value): This instruction stores the given variableId
 	//and its value in the first unassigned spot in the memory. 
@@ -294,6 +304,7 @@ public class Scheduler implements Runnable {
 				if(MainMemory[i] == null) { //add variable to first available place
 					flag = true;
 					MainMemory[i] = newVar;
+					MainMemory[i].setWasUsed(true);
 					System.out.println("TIME: " + getElapsedTime() +  " STORING VARIABLE " + newVar.getVarID() + " IN MAIN MEMORY\n");
 					printToFile("Time " + elapsedTime + ", Var: " + varId + " value: " + value + ", Stored in MainMemory[ " + i + "]\n");
 					return;
@@ -308,23 +319,49 @@ public class Scheduler implements Runnable {
 		}
 
 	}
-	
-	public void release(String varId) {
+	/**
+	 * @throws IOException ****************************************************************/
+	public boolean release(String varId) throws IOException {
 		//http://docs.oracle.com/javase/tutorial/essential/concurrency/locksync.html
 		//this provides the object on which the lock is aquired
+		Variable tempVar = null;
+		int swapIndex = 0;
 		boolean flag = false; 
 		synchronized(this) {
 			for(int i = 0; i < size_of_main_memory; i++) {
 				if(MainMemory[i].getVarID() == varId) {
 					flag = true;
 					MainMemory[i] = null; //release the variable
+					printToFile("Time " + elapsedTime + " Release Variable " + varId);
+
+					return true;
 				}
 			}
 			
 			if(!flag) {
-				//here i would store newVar in txt file
+				
+				//	for (String line : Files.readAllLines(Paths.get("C:/Users/Ali/workspace/OSAss2Write/wawanesa.txt"))) {
+//					http://stackoverflow.com/questions/4871051/getting-the-current-working-directory-in-java
+					Path currentRelativePath = Paths.get("");
+					String pathToFile = currentRelativePath.toAbsolutePath().toString();
+					
+					ArrayList<String> hardDriveData = (ArrayList<String>) Files.readAllLines(Paths.get(pathToFile + "/HardDrive.txt"));
+					
+					for(int i =0; i<hardDriveData.size(); i++) {
+						String[] tokens = hardDriveData.get(i).split("//s");
+						if(tokens[0] == varId) { //found it
+							hardDriveData.remove(i); 
+							emptyHardDrive();
+							printListToHardDrive(hardDriveData);
+							printToFile("Time " + elapsedTime + " Release Variable " + varId);
+							return true;
+							
+						}
+					}
 			}
 		}
+		printToFile("Time " + elapsedTime + " Variable " + varId + " not stored for release");
+		return false;  //if we haven't returned true yet then we return false, Variable was not in MM or Hard Drive
 	}
 	
 	
@@ -335,7 +372,8 @@ public class Scheduler implements Runnable {
 //		outputFile.close();
 		
 	}
-	// STILL NEED THIS????????????????????????/
+	
+	// *************************88/
 	public void storeInHardDrive(Variable v) {
 		String input = v.getVarID() + " " + v.getValue();
 		System.out.println("Trying to print to HardDrive.txt variable ID: " + v.getVarID() + " value: " + v.getValue());
@@ -344,7 +382,7 @@ public class Scheduler implements Runnable {
 //		outputFile.close();
 		
 	}
-	
+	/*******************************************************/
 	//http://stackoverflow.com/questions/2885173/how-do-i-create-a-file-and-write-to-it-in-java
 	public void createTextFile() {
 		
